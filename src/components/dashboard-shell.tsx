@@ -312,7 +312,7 @@ export function DashboardShell({ aiSummaryEnabled }: DashboardShellProps) {
             />
           </section>
 
-          <section className="mt-8 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+          <section className="mt-8">
             <section className="panel rounded-[32px] p-5 sm:p-6">
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
@@ -494,7 +494,7 @@ export function DashboardShell({ aiSummaryEnabled }: DashboardShellProps) {
                         <td className="px-5 py-4 text-sm text-slate-600 sm:px-6">{job.company}</td>
                         <td className="px-5 py-4 text-sm text-slate-600 sm:px-6">{job.location}</td>
                         <td className="px-5 py-4 text-sm text-slate-600 sm:px-6">
-                          {formatSalaryRange(job.salaryMin, job.salaryMax, job.salaryAverage)}
+                          {formatSalary(job.salaryMin, job.salaryMax, job.salaryAverage)}
                         </td>
                         <td className="px-5 py-4 text-sm sm:px-6">
                           <a
@@ -544,14 +544,22 @@ function formatCurrency(value: number | null): string {
   return value === null ? "n/a" : currencyFormatter.format(value);
 }
 
-function formatSalaryRange(
+function formatSalary(
   salaryMin: number | null,
   salaryMax: number | null,
   salaryAverage: number | null,
 ): string {
-  if (salaryMin !== null && salaryMax !== null) {
-    return `${formatCurrency(salaryMin)} - ${formatCurrency(salaryMax)}`;
+  if (salaryAverage !== null) {
+    return formatCurrency(salaryAverage);
   }
 
-  return formatCurrency(salaryAverage);
+  if (salaryMin !== null) {
+    return formatCurrency(salaryMin);
+  }
+
+  if (salaryMax !== null) {
+    return formatCurrency(salaryMax);
+  }
+
+  return "n/a";
 }
