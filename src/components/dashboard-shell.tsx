@@ -25,16 +25,6 @@ import type {
 interface DashboardShellProps {
   aiSummaryEnabled: boolean;
 }
-
-interface SnapshotHistoryEntry {
-  capturedAt: string;
-  filters: JobFilters;
-  totalPostings: number;
-  averageSalary: number | null;
-  topSkill: string | null;
-}
-
-const STORAGE_KEY = "ai-job-market-dashboard-snapshots";
 const ROLE_PRESETS = [
   { label: "Data Science", keyword: "data scientist" },
   { label: "Machine Learning", keyword: "machine learning engineer" },
@@ -63,32 +53,6 @@ export function DashboardShell({ aiSummaryEnabled }: DashboardShellProps) {
   const [summary, setSummary] = useState<string | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
-  const [previousSnapshot, setPreviousSnapshot] = useState<SnapshotHistoryEntry | null>(null);
-
-  const saveSnapshot = useCallback((payload: JobsApiResponse) => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      const existing = raw ? (JSON.parse(raw) as SnapshotHistoryEntry[]) : [];
-      const prior = existing[0] ?? null;
-
-      setPreviousSnapshot(prior);
-
-      const nextEntry: SnapshotHistoryEntry = {
-        capturedAt: new Date().toISOString(),
-        filters: payload.filters,
-        totalPostings: payload.snapshot.totalPostings,
-        averageSalary: payload.snapshot.averageSalary,
-        topSkill: payload.snapshot.topSkills[0]?.label ?? null,
-      };
-
-      window.localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify([nextEntry, ...existing].slice(0, 6)),
-      );
-    } catch {
-      setPreviousSnapshot(null);
-    }
-  }, []);
 
   const loadJobs = useCallback(
     async (nextFilters: JobFilters) => {
@@ -114,7 +78,6 @@ export function DashboardShell({ aiSummaryEnabled }: DashboardShellProps) {
 
         const payload = (await response.json()) as JobsApiResponse;
         setData(payload);
-        saveSnapshot(payload);
       } catch (caughtError) {
         setError(
           caughtError instanceof Error
@@ -125,7 +88,7 @@ export function DashboardShell({ aiSummaryEnabled }: DashboardShellProps) {
         setLoading(false);
       }
     },
-    [saveSnapshot],
+    [],
   );
 
   useEffect(() => {
@@ -200,10 +163,6 @@ export function DashboardShell({ aiSummaryEnabled }: DashboardShellProps) {
   const remoteFriendlyCount =
     (data?.snapshot.remoteBreakdown.find((item) => item.label === "Remote")?.value ?? 0) +
     (data?.snapshot.remoteBreakdown.find((item) => item.label === "Hybrid")?.value ?? 0);
-
-  const salaryDelta = getSalaryDelta(data?.snapshot.averageSalary ?? null, previousSnapshot);
-  const postingDelta =
-    data && previousSnapshot ? data.snapshot.totalPostings - previousSnapshot.totalPostings : null;
 
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -359,8 +318,7 @@ export function DashboardShell({ aiSummaryEnabled }: DashboardShellProps) {
                 <div>
                   <h2 className="text-xl font-semibold text-slate-950">AI market summary</h2>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                    Generate a concise server-side summary from the live dataset without exposing
-                    your OpenAI API key in the browser.
+                    Generate a concise server-side summary from the current live dataset.
                   </p>
                 </div>
                 <button
@@ -396,47 +354,6 @@ export function DashboardShell({ aiSummaryEnabled }: DashboardShellProps) {
                     {summaryError}
                   </p>
                 ) : null}
-              </div>
-            </section>
-
-            <section className="panel rounded-[32px] p-5 sm:p-6">
-              <h2 className="text-xl font-semibold text-slate-950">Trend snapshot</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Compare the current search against the last locally saved dashboard snapshot in
-                this browser.
-              </p>
-
-              <div className="mt-5 grid gap-4">
-                <div className="rounded-[26px] border border-slate-200 bg-white p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-                    Posting delta
-                  </p>
-                  <p className="mt-3 text-2xl font-semibold text-slate-950">
-                    {formatDelta(postingDelta, "postings")}
-                  </p>
-                </div>
-                <div className="rounded-[26px] border border-slate-200 bg-white p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-                    Salary delta
-                  </p>
-                  <p className="mt-3 text-2xl font-semibold text-slate-950">
-                    {salaryDelta ?? "Save one more snapshot"}
-                  </p>
-                </div>
-                <div className="rounded-[26px] border border-slate-200 bg-white p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-                    Previous top skill
-                  </p>
-                  <p className="mt-3 text-lg font-semibold text-slate-950">
-                    {previousSnapshot?.topSkill ?? "No prior local snapshot"}
-                  </p>
-                  {previousSnapshot ? (
-                    <p className="mt-2 text-sm text-slate-600">
-                      Saved {formatDate(previousSnapshot.capturedAt)} for keyword &quot;
-                      {previousSnapshot.filters.keyword}&quot;.
-                    </p>
-                  ) : null}
-                </div>
               </div>
             </section>
           </section>
@@ -535,15 +452,7 @@ export function DashboardShell({ aiSummaryEnabled }: DashboardShellProps) {
             </ChartCard>
           </section>
 
-          <section className="mt-8 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-            <section className="panel rounded-[32px] p-5 sm:p-6">
-              <h2 className="text-xl font-semibold text-slate-950">Leaderboard</h2>
-              <div className="mt-5 grid gap-5 sm:grid-cols-2">
-                <ListCard title="Top hiring companies" items={data.snapshot.topHiringCompanies} />
-                <ListCard title="Top locations" items={data.snapshot.topLocations} />
-              </div>
-            </section>
-
+          <section className="mt-8">
             <section className="panel overflow-hidden rounded-[32px]">
               <div className="border-b border-slate-200 px-5 py-5 sm:px-6">
                 <h2 className="text-xl font-semibold text-slate-950">Recent job postings</h2>
@@ -618,37 +527,6 @@ function ChartWrapper({ children }: { children: ReactNode }) {
   );
 }
 
-function ListCard({
-  title,
-  items,
-}: {
-  title: string;
-  items: Array<{ label: string; value: number }>;
-}) {
-  return (
-    <div className="rounded-[28px] border border-slate-200 bg-white p-4">
-      <h3 className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">{title}</h3>
-      <div className="mt-4 space-y-3">
-        {items.length > 0 ? (
-          items.map((item) => (
-            <div
-              key={item.label}
-              className="flex items-center justify-between rounded-2xl bg-slate-50 px-3 py-3"
-            >
-              <span className="text-sm font-medium text-slate-700">{item.label}</span>
-              <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold text-white">
-                {item.value}
-              </span>
-            </div>
-          ))
-        ) : (
-          <p className="text-sm text-slate-500">No data for this view yet.</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function LoadingSkeleton() {
   return (
     <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -676,37 +554,4 @@ function formatSalaryRange(
   }
 
   return formatCurrency(salaryAverage);
-}
-
-function getSalaryDelta(
-  currentSalary: number | null,
-  previousSnapshot: SnapshotHistoryEntry | null,
-): string | null {
-  if (currentSalary === null || !previousSnapshot || previousSnapshot.averageSalary === null) {
-    return null;
-  }
-
-  const previousAverageSalary = previousSnapshot.averageSalary;
-  const delta = currentSalary - previousAverageSalary;
-  const sign = delta > 0 ? "+" : "";
-
-  return `${sign}${formatCurrency(delta)} vs previous`;
-}
-
-function formatDelta(delta: number | null, unit: string): string {
-  if (delta === null) {
-    return "Save one more snapshot";
-  }
-
-  const sign = delta > 0 ? "+" : "";
-  return `${sign}${delta} ${unit}`;
-}
-
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(value));
 }

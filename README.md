@@ -2,6 +2,8 @@
 
 A publicly deployable full-stack dashboard built with Next.js 14, TypeScript, Tailwind CSS, and Recharts. It fetches live job postings from Adzuna, aggregates market signals for early-career candidates, and optionally uses the OpenAI API to generate a short market summary.
 
+This repository contains the full codebase plus installation and deployment documentation needed to replicate the dashboard tool locally or on Vercel.
+
 ## Features
 
 - Live job search through the Adzuna API using secure server-side route handlers
@@ -11,13 +13,12 @@ A publicly deployable full-stack dashboard built with Next.js 14, TypeScript, Ta
 - Recent job postings table with salary ranges and outbound links
 - Optional server-side AI summary panel powered by OpenAI
 - Seeded fallback data if Adzuna credentials are missing or the API is unavailable
-- Local snapshot storage in the browser for quick trend comparison between searches
 - Responsive UI tuned for desktop and mobile
 
 ## Architecture
 
 - `src/app/page.tsx`: thin entry point that renders the dashboard shell
-- `src/components/dashboard-shell.tsx`: client-side UI, filters, charts, loading states, and local snapshot storage
+- `src/components/dashboard-shell.tsx`: client-side UI, filters, charts, loading states, and recent postings table
 - `src/app/api/jobs/route.ts`: server route that fetches Adzuna data, normalizes it, and falls back to mock data when needed
 - `src/app/api/ai-summary/route.ts`: server route that generates the optional OpenAI summary
 - `src/lib/adzuna.ts`: Adzuna fetch logic and short-lived in-memory caching
@@ -66,6 +67,18 @@ npm run dev
 ```
 
 4. Open `http://localhost:3000`
+
+## Replicating The Dashboard
+
+To replicate this dashboard/tool from the repository:
+
+1. Clone the GitHub repo.
+2. Run `npm install`.
+3. Create `.env.local` from `.env.local.example`.
+4. Add valid Adzuna credentials and, optionally, an OpenAI API key.
+5. Run `npm run dev` for local development.
+6. Run `npm run build` to verify the production build.
+7. Deploy the same repo to Vercel with the same environment variables.
 
 ## Local Run Commands
 
